@@ -5,13 +5,13 @@ metadata:
   namespace: argocd
 spec:
   destination:
-    name: management
-    namespace: grafana
+    namespace: management
+    server: https://kubernetes.default.svc 
   project: default
   source:
     chart: grafana
     repoURL: https://grafana.github.io/helm-charts
-    targetRevision: 8.4.2
+    targetRevision: 6.24.1
   syncPolicy:
     automated:
       selfHeal: true
