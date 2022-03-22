@@ -5,8 +5,8 @@ metadata:
   namespace: argocd                                   # Should be the namespace in which ArgoCD is deployed
 spec:
   destination:
-    name: management
-    namespace: logs                             # Namespace in which Loki will be deployed
+    namespace: management                             # Namespace in which Loki will be deployed
+    server: https://kubernetes.default.svc            # Cluster in which Loki will be deployed
   project: default
   source:
     chart: loki-distributed                           # Using the loki-distributed chart from loki helm registry
@@ -17,7 +17,6 @@ spec:
         fullnameOverride: loki                        # Giving a fullnameoverride to avoid default names for resources
         loki:
           config: |
-            existingSecret: artifact-store-credentials
             auth_enabled: false
             server:
               http_listen_port: 3100
@@ -50,19 +49,25 @@ spec:
               ingestion_burst_size_mb: 1000
             schema_config:
               configs:
-                - from: 2022-03-21
-                  store: aws
-                  object_store: s3
+                - from: 2020-09-07
+                  store: boltdb-shipper
+                  object_store: filesystem
                   schema: v11
                   index:
                     prefix: loki_index_
                     period: 24h
             storage_config:
-              aws:
-                bucketnames: loki
-                endpoint: minio.argo-workflows
-                region: .
-                s3forcepathstyle: true
+              boltdb_shipper:
+                shared_store: filesystem
+                active_index_directory: /var/loki/index
+                cache_location: /var/loki/cache
+                cache_ttl: 168h
+                {{- if .Values.indexGateway.enabled }}
+                index_gateway_client:
+                  server_address: dns:///{{ include "loki.indexGatewayFullname" . }}:9095
+                {{- end }}
+              filesystem:
+                directory: /var/loki/chunks
             chunk_store_config:
               max_look_back_period: 0s
             table_manager:
@@ -93,7 +98,7 @@ spec:
                 local:
                   directory: /etc/loki/rules
               rule_path: /tmp/loki/scratch
-              alertmanager_url: http://alertmanager-operated.logs:9093   # alertmanager URL to use if using alerting-rules
+              alertmanager_url: http://alertmanager-operated.monitoring:9093   # alertmanager URL to use if using alerting-rules
               ring:
                 kvstore:
                   store: inmemory
